@@ -2,8 +2,7 @@ var MongoClient = require('mongodb').MongoClient, format = require('util').forma
 
 var io = require('socket.io')(3001);
 var mqtt = require('mqtt');
-//var broker = mqtt.connect('mqtt://localhost');
-var broker = mqtt.connect('mqtt://prata.technocreatives.com');
+var broker = mqtt.connect('mqtt://localhost');
 var util = require('util');
 var fs = require('fs');
 
@@ -212,7 +211,7 @@ MongoClient.connect('mongodb://127.0.0.1/hobee', function(err, db){
 //// API for images ////
 ////////////////////////
 
-// Create a REST API and retur user images when requesting http://gunray.skip.chalmers.se:3003/api/containers/userImages/download/<<userId>>.png
+// Create a REST API and retur user images when requesting http://<<server address>>:3003/api/containers/userImages/download/<<userId>>.png
 
 var loopback = require('loopback');
 var boot = require('loopback-boot');
