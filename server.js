@@ -47,7 +47,7 @@ MongoClient.connect('mongodb://127.0.0.1/hobee', function(err, db){
 
   			console.log('image received');
 
-  			fs.writeFile('/home/bee/hobee/server/storage/userImages/' + userId + '.png', imageString, 'base64', function(error){
+  			fs.writeFile('storage/userImages/' + userId + '.png', imageString, 'base64', function(error){
   				if(error){
   					console.log(err);
   				}
@@ -193,15 +193,51 @@ MongoClient.connect('mongodb://127.0.0.1/hobee', function(err, db){
 	// Here broker gets a message from sertain topic
 	broker.on('message', function (topic, message){
 
-		//pattern for matching topics that start with "hobby/event/"
-		//var eventTopic = "hobby\/event\/.*";
 		var eventTopic = "event/hobby/";
 		//check if the topic contains the string "event/hobby/"
-		if (topic.indexOf(eventTopic)!==-1){
+		if (topic.indexOf(eventTopic)!==-1 && message.toString()!==""){
 			var newEvent = JSON.parse(message.toString());
-			//update an event if something has changed, otherwise insert a new entry into the database
-			db.collection('events').update({'eventID':newEvent.eventID}, newEvent, {upsert:true});
-			console.log("event updated");
+			console.log("received an event");
+			if(newEvent.hasOwnProperty("status")){
+				//this is a cancelled event
+				//get the current event from the collection 
+				db.collection('events').findOne({'eventID': newEvent.eventID}, function(err, item){
+					if(item!==null){
+						//add the cancelled event to the cancelled events collection
+						var cancelledEvent = {
+							"event": item,
+							"reason": newEvent.reason, 
+							"timeCancelled": newEvent.timestamp
+						};
+						db.collection('cancelledEvents').insert(cancelledEvent);
+						console.log("An event was cancelled");
+						
+						//get the host of the event and decrease his reputation
+						db.collection('users').findOne({'userID':item.event_details.host_id}, function(err, host){
+
+							//get the number of accepted users in the event
+							var acceptedUsers = item.event_details.users_accepted.length - 1;
+							//how much reputation is lost per user who was acccepted
+							var decreasePerUser = 10;
+							//calculate the new reputation
+							var newRank = host.rank.hostRep - (decreasePerUser * acceptedUsers);
+								
+							db.collection('users').update({userID: event.event_details.host_id}, {'rank.hostRep': newRank});			
+							
+						});		
+					}					
+				});
+				//remove the event from the collection of active events
+				db.collection('events').remove({'eventID': newEvent.eventID}, function (err, res){
+					console.log("event removed");
+				});
+
+			}
+			else{ //this is a new or an updated event
+				//update an event if something has changed, otherwise insert a new entry into the database
+				db.collection('events').update({'eventID':newEvent.eventID}, newEvent, {upsert:true});
+				console.log("event updated");
+			}
 		}
 	});
 });
